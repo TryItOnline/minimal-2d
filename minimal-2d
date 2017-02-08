@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+# Minimal-2D interpreter
+
+import sys
+
+def addvec((x1,y1),(x2,y2)):
+   return (x1+x2, y1+y2)
+def mulvec((x,y),m):
+   return (x*m, y*m)
+
+# bidirectional infinite tape
+class Tape:
+   def __init__(self):
+      self.tape = [0]
+      self.offset = 0
+      self.pos = 0
+   
+   def left(self):
+      self.pos -= 1
+      if self.pos == -1:
+         self.offset += 1
+         self.pos = 0
+         self.tape.insert(0, 0)
+   
+   def right(self):
+      self.pos += 1
+      if len(self.tape) >= self.pos + self.offset:
+         self.tape.append(0)
+   
+   def get(self):
+      return self.tape[self.pos+self.offset]
+   
+   def set(self, v):
+      self.tape[self.pos+self.offset] = v
+
+# program field
+class Field:
+   def __init__(self, f, emptychar=' '):
+      self.lines = [line[:-1] for line in f.readlines()]
+      self.ybound = len(self.lines)
+      self.xbound = max([len(line) for line in self.lines])
+      self.emptychar = emptychar
+      
+   def __getitem__(self, (x, y)):
+      if 0<=x<self.xbound and 0<=y<self.ybound:
+         try:
+            return self.lines[y][x]
+         except IndexError:
+            return self.emptychar 
+      else:
+         raise IndexError("coordinates are outside field")
+         
+         
+# program head
+class Head:
+   U,D,L,R = (0,-1), (0,1), (-1,0), (1,0)
+   def __init__(self, tape, field):
+      self.tape=tape
+      self.field=field
+      self.ip=[0,0]
+      self.dir=self.R
+      
+      self.cmds = { '<': self.tape.left, 
+                    '>': self.tape.right,
+                    '+': self.inc,
+                    '-': self.dec,
+                    '.': self.out,
+                    ',': self.inp,
+                    '/': self.skip,
+                    'U': self.sdir(self.U),
+                    'D': self.sdir(self.D),
+                    'L': self.sdir(self.L),
+                    'R': self.sdir(self.R) }
+                    
+   def inc(self): self.tape.set(self.tape.get()+1)
+   def dec(self): self.tape.set(self.tape.get()-1)
+   def out(self): sys.stdout.write(chr(self.tape.get()%256))
+   def inp(self):
+      ch = sys.stdin.read(1)
+      self.tape.set(ch and ord(ch) or -1)
+   def skip(self): self.ip = addvec(self.ip, mulvec(self.dir, not self.tape.get()))
+   def sdir(self, d):
+      def f():
+         self.dir=d
+      return f
+   
+   def step(self):
+      try:
+         if self.field[self.ip] in self.cmds.keys():
+            self.cmds[self.field[self.ip]]()
+         self.ip = addvec(self.ip, self.dir)
+         return True
+      except IndexError:
+         # end program, we've left the field
+         return False
+         
+         
+def main(argv):
+   if len(argv) != 2:
+      print "usage: %s program" % argv[0]
+      sys.exit()
+   
+   try:
+      h = Head(Tape(), Field(file(argv[1])))
+      while h.step(): pass
+   except IOError, e:
+      print "error: can't read %s: %s" % (argv[1], e)
+
+if __name__=='__main__': main(sys.argv)
