@@ -36,7 +36,7 @@ class Tape:
 # program field
 class Field:
    def __init__(self, f, emptychar=' '):
-      self.lines = [line[:-1] for line in f.readlines()]
+      self.lines = [line.strip('\n') for line in f.readlines()] 
       self.ybound = len(self.lines)
       self.xbound = max([len(line) for line in self.lines])
       self.emptychar = emptychar
